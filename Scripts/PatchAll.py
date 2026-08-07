@@ -66,29 +66,33 @@ else:
     print(f"[-] FeaturesUnlock folder not found at {features_dir}")
 print("")
 
-print("[*] Recompiling APK...")
-subprocess.run(["java", "-jar", apktool_path, "b", decompiled_dir, "-o", unsigned_apk], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+try:
+    print("[*] Recompiling APK...")
+    subprocess.run(["java", "-jar", apktool_path, "b", decompiled_dir, "-o", unsigned_apk], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-if not os.path.exists(keystore_path):
-    print("[*] Generating new keystore...")
+    if not os.path.exists(keystore_path):
+        print("[*] Generating new keystore...")
+        subprocess.run([
+            "keytool", "-genkey", "-v", "-keystore", keystore_path, "-alias", "mod", 
+            "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000", 
+            "-storepass", "password", "-keypass", "password", 
+            "-dname", "CN=Modder, OU=Mod, O=Mod, L=Mod, S=Mod, C=US"
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    print("[*] Signing APK...")
     subprocess.run([
-        "keytool", "-genkey", "-v", "-keystore", keystore_path, "-alias", "mod", 
-        "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000", 
-        "-storepass", "password", "-keypass", "password", 
-        "-dname", "CN=Modder, OU=Mod, O=Mod, L=Mod, S=Mod, C=US"
+        "apksigner", "sign", "--ks", keystore_path, "--ks-pass", "pass:password", 
+        "--out", out_apk, unsigned_apk
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-print("[*] Signing APK...")
-subprocess.run([
-    "apksigner", "sign", "--ks", keystore_path, "--ks-pass", "pass:password", 
-    "--out", out_apk, unsigned_apk
-], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-print("[*] Cleaning up temporary files...")
-shutil.rmtree(decompiled_dir)
-if os.path.exists(unsigned_apk):
-    os.remove(unsigned_apk)
-if os.path.exists(out_apk + ".idsig"):
-    os.remove(out_apk + ".idsig")
-
-print(f"\n[SUCCESS] Modified APK created: {out_apk}")
+    print(f"\n[SUCCESS] Modified APK created: {out_apk}")
+except Exception as e:
+    print(f"\n[ERROR] An error occurred: {e}")
+finally:
+    print("[*] Cleaning up temporary files...")
+    if os.path.exists(decompiled_dir):
+        shutil.rmtree(decompiled_dir)
+    if os.path.exists(unsigned_apk):
+        os.remove(unsigned_apk)
+    if os.path.exists(out_apk + ".idsig"):
+        os.remove(out_apk + ".idsig")
